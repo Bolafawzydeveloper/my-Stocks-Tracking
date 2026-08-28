@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة تحكم المحفظة ومتابعة الأسهم</title>
+  <meta name="description" content="نظام إدارة وتوزيع المحفظة الاستثمارية، قائمة المراقبة، وحساب الأرباح والخسائر والدعوم والأهداف الفنية.">
+  
+  <!-- Google Fonts: Cairo -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Standalone Stylesheet -->
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+ <!-- شاشة تسجيل الدخول الإجبارية -->
+  <div id="login-overlay" style="position:fixed; inset:0; background:var(--bg-main); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2rem;">
+    <div style="text-align:center;">
+      <div class="logo-icon" style="width:80px; height:80px; font-size:3rem; margin:0 auto 1rem;">📈</div>
+      <h1 style="color:#ffffff; font-size:1.8rem; margin-bottom:0.5rem; font-weight:800;">لوحة تحكم المحفظة</h1>
+      <p style="color:var(--text-muted);">يرجى تسجيل الدخول للوصول إلى بياناتك السحابية</p>
+    </div>
+    <button id="google-login-btn" class="btn btn-primary" style="font-size:1.1rem; padding:0.75rem 2rem; border-radius:30px; box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);">
+      🌐 تسجيل الدخول باستخدام Google
+    </button>
+  </div>
+<!-- 1. Header -->
+  <header class="app-header">
+    <div class="header-container" style="display: flex; align-items: center; justify-content: space-between;">
+      
+      <!-- اليمين: الأزرار والإجراءات -->
+      <div class="header-actions" style="flex: 1; display: flex; gap: 0.5rem; justify-content: flex-start;">
+        <button id="logout-btn" class="btn btn-secondary login-btn" style="height: 35px; box-shadow: none; font-size: 0.75rem; padding: 0 0.75rem;">
+          👤 <span>تسجيل خروج</span>
+        </button>
+        <button class="btn btn-primary" onclick="openAddStockModal('longTerm')" style="height: 35px; box-shadow: none; font-size: 0.75rem; padding: 0 0.75rem;">
+          ➕ <span>إضافة سهم</span>
+        </button>
+      </div>
+
+      <!-- المنتصف: العنوان والتاريخ -->
+      <div class="logo-section" style="flex: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+        <h1 style="font-size: 1.05rem; font-weight: 700; margin: 0; color: #ffffff;">لوحة تحكم المحفظة والاسهم (Bola Fawzy)</h1>
+        <p id="current-date-text" style="font-size: 0.725rem; color: var(--text-muted); margin: 0;">جاري تحميل التاريخ...</p>
+      </div>
+
+      <!-- اليسار: أدوات البحث والنسخ الاحتياطي -->
+      <div class="header-actions" style="flex: 1; display: flex; gap: 0.5rem; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="openSearchModal()" title="بحث سريع (Ctrl + K)" style="height: 35px; box-shadow: none; font-size: 0.75rem; padding: 0 0.5rem;">
+          🔍
+        </button>
+        <button class="btn btn-secondary" onclick="exportDataBackup()" title="تصدير نسخة" style="height: 35px; box-shadow: none; font-size: 0.75rem; padding: 0 0.5rem;">
+          💾
+        </button>
+        <input type="file" id="import-backup-file" accept=".json" style="display:none;" />
+        <button class="btn btn-secondary" onclick="document.getElementById('import-backup-file').click()" title="استيراد" style="height: 35px; box-shadow: none; font-size: 0.75rem; padding: 0 0.5rem;">
+          📂
+        </button>
+      </div>
+
+    </div>
+  </header>
+  <!-- 2. Real-time Alerts Ticker -->
+  <div class="alerts-bar">
+    <div class="alerts-container" id="alerts-container">
+      <span class="alert-badge-label">⚡ تنبيهات فنية</span>
+      <span style="font-size:0.75rem; color:var(--text-dim);">جاري فحص التنبيهات...</span>
+    </div>
+  </div>
+
+  <!-- 3. Main Content Container -->
+  <main class="main-content">
+
+    <!-- KPI Summary Grid (4 Cards) -->
+    <section class="kpi-grid">
+      <!-- Card 1: Total Assets Value & PnL -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-title-box">
+            <div class="kpi-icon icon-blue">💼</div>
+            <span class="kpi-label">إجمالي قيمة المحفظة والأصول</span>
+          </div>
+        </div>
+        <div class="kpi-value">
+          <span id="kpi-total-assets">0.00</span>
+          <span class="kpi-currency">ج.م</span>
+        </div>
+        <div class="kpi-sub">
+          <span id="kpi-pnl-pill" class="profit-pill profit-pos">▲ +0.00 ج.م (+0.0%)</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Total Deposited Capital -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-title-box">
+            <div class="kpi-icon icon-emerald">🏦</div>
+            <span class="kpi-label">إجمالي رأس المال المودع</span>
+          </div>
+          <button class="kpi-edit-btn" onclick="openValueEditModal('تعديل إجمالي رأس المال المودع', 'المبلغ المودع الكلي (ج.م):', depositData.totalDeposited, function(v){ depositData.totalDeposited = v; saveDeposit(); })" title="تعديل المبلغ">✏️</button>
+        </div>
+        <div class="kpi-value">
+          <span id="kpi-total-deposited">0.00</span>
+          <span class="kpi-currency">ج.م</span>
+        </div>
+        <div class="kpi-sub" style="color:var(--text-muted);">
+          مجموع الإيداعات التراكمية
+        </div>
+      </div>
+
+      <!-- Card 3: Free Cash -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-title-box">
+            <div class="kpi-icon icon-purple">💵</div>
+            <span class="kpi-label">السيولة النقدية الحرة (الكاش)</span>
+          </div>
+          <button class="kpi-edit-btn" onclick="openValueEditModal('تعديل السيولة الحرة (الكاش)', 'مبلغ الكاش غير المستثمر (ج.م):', depositData.freeCash, function(v){ depositData.freeCash = v; saveDeposit(); })" title="تعديل السيولة">✏️</button>
+        </div>
+        <div class="kpi-value">
+          <span id="kpi-free-cash">0.00</span>
+          <span class="kpi-currency">ج.م</span>
+        </div>
+        <div class="kpi-sub" id="kpi-cash-pct" style="color:var(--text-muted);">
+          0% من إجمالي المحفظة
+        </div>
+      </div>
+
+      <!-- Card 4: Monthly Target Deposit -->
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <div class="kpi-title-box">
+            <div class="kpi-icon icon-amber">🎯</div>
+            <span class="kpi-label">الإيداع الشهري المستهدف</span>
+          </div>
+          <button class="kpi-edit-btn" onclick="openValueEditModal('تعديل الإيداع الشهري المستهدف', 'قيمة الإيداع الأساسي المستهدف (ج.م):', depositData.baseAmount, function(v){ depositData.baseAmount = v; saveDeposit(); })" title="تعديل الإيداع">✏️</button>
+        </div>
+        <div class="kpi-value">
+          <span id="kpi-monthly-deposit">0.00</span>
+          <span class="kpi-currency">ج.م</span>
+        </div>
+        <div class="kpi-sub" id="kpi-deposit-month-name" style="color:var(--accent-amber);">
+          هدف الشهر الحالي (+20% شهرياً)
+        </div>
+      </div>
+    </section>
+
+    <!-- Dynamic Portfolio Sections -->
+    <section>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+        <h2 style="font-size:1.15rem; font-weight:800; color:#ffffff; display:flex; align-items:center; gap:0.5rem;">
+          📊 <span>أقسام وتوزيعات المحفظة الاستثمارية</span>
+        </h2>
+      </div>
+
+      <!-- Injected by script.js -->
+      <div id="sections-container"></div>
+    </section>
+
+    <!-- Watchlist Section -->
+    <!-- Watchlist Section (المميزة والمفصولة) -->
+    <section class="watchlist-wrapper" id="watchlist-section">
+      <div class="section-head watchlist-head" style="background: transparent; border-bottom: none; padding-bottom: 0;">
+        <div class="section-title-wrap">
+          <h3 class="section-title" style="color: #c084fc; font-size: 1.3rem;">⭐ قائمة الأسهم قيد المراقبة والدراسة</h3>
+          <span class="ratio-badge" style="background: rgba(168,85,247,0.15); color: #d8b4fe; border-color: rgba(168,85,247,0.3);">
+            مفصولة ومميزة
+          </span>
+        </div>
+        <div class="section-head-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="openAddStockModal('watchlistLong')" style="background-color: #9333ea; border: none; box-shadow: none;">
+            ➕ إضافة مراقبة (استثمار)
+          </button>
+          <button class="btn btn-primary" onclick="openAddStockModal('watchlistShort')" style="background-color: #a855f7; border: none; box-shadow: none;">
+            ➕ إضافة مراقبة (مضاربة)
+          </button>
+        </div>
+        <div class="section-rule" style="color: #a855f7;">
+          💡 <strong>الهدف:</strong> متابعة مستويات الدعم الفنية ونسب فيبوناتشي لاقتناص أفضل نقاط الدخول مقسمة حسب استراتيجية المدى.
+        </div>
+      </div>
+
+      <!-- سيتم حقن القسمين (طويل وقصير المدى) هنا بواسطة الجافاسكريبت -->
+      <div id="watchlist-container" style="display:flex; flex-direction:column; gap: 2.5rem; margin-top: 2rem;">
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 4. Footer -->
+  <footer class="app-footer">
+    <p>لوحة تحكم المحفظة ومتابعة الأسهم    ||    جميع الحقوق محفوظةBF-digital agency &copy; 2026 </p>
+  </footer>
+
+  <!-- ==========================================
+       MODALS
+       ========================================== -->
+
+  <!-- Modal 1: Add / Edit Stock Modal -->
+  <div class="modal-overlay" id="stock-form-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title" id="stock-modal-title">➕ إضافة أصل / سهم جديد</h3>
+        <button class="modal-close-btn" onclick="closeModal('stock-form-modal')">&times;</button>
+      </div>
+
+      <form id="stock-form">
+        <input type="hidden" id="stock-form-id" />
+        <input type="hidden" id="stock-form-image-base64" />
+
+        <div class="modal-body">
+          <!-- Main Info -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">القسم / التصنيف *</label>
+               <select id="stock-form-section" class="form-select" required>
+                  <option value="longTerm">الأسهم طويلة المدى (استثمار)</option>
+                  <option value="gold">صناديق الذهب</option>
+                  <option value="equityFunds">صناديق الأسهم</option>
+                  <option value="speculative">الأسهم قصيرة المدى والمضاربة</option>
+                  <option value="watchlistLong">🛡️ قائمة المراقبة (استثمار طويل المدى)</option>
+                  <option value="watchlistShort">⚡ قائمة المراقبة (مضاربة وقصيرة المدى)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">رمز السهم (Symbol) *</label>
+              <input type="text" id="stock-form-symbol" class="form-input" placeholder="مثال: TMGH أو COMI" required />
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label class="form-label">اسم الشركة أو الأصل *</label>
+              <input type="text" id="stock-form-name" class="form-input" placeholder="مثال: مجموعة طلعت مصطفى القابضة" required />
+            </div>
+          </div>
+
+          <!-- Position & Pricing -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">الكمية المملوكة (0 للمراقبة)</label>
+              <input type="number" step="any" id="stock-form-quantity" class="form-input" placeholder="0" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">متوسط سعر الشراء (ج.م)</label>
+              <input type="number" step="any" id="stock-form-buy-price" class="form-input" placeholder="0.00" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">السعر السوقي الحالي (ج.م) *</label>
+              <input type="number" step="any" id="stock-form-current-price" class="form-input" placeholder="0.00" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">القيمة العادلة المقدرة (ج.م)</label>
+              <input type="number" step="any" id="stock-form-fair-value" class="form-input" placeholder="0.00" />
+            </div>
+          </div>
+
+          <!-- Targets & Stop Loss -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">🎯 الهدف الأول (ج.م)</label>
+              <input type="number" step="any" id="stock-form-target1" class="form-input" placeholder="0.00" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">🎯 الهدف الثاني (ج.م)</label>
+              <input type="number" step="any" id="stock-form-target2" class="form-input" placeholder="0.00" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">🎯 الهدف الثالث (ج.م)</label>
+              <input type="number" step="any" id="stock-form-target3" class="form-input" placeholder="0.00" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">🛑 وقف الخسارة (ج.م)</label>
+              <input type="number" step="any" id="stock-form-stoploss" class="form-input" placeholder="0.00" />
+            </div>
+          </div>
+
+          <!-- Fibonacci & Indicators -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">📉 دعم فيبو 50% (ج.م)</label>
+              <input type="number" step="any" id="stock-form-fib50" class="form-input" placeholder="0.00" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">🌟 دعم فيبو الذهبي 60% (ج.م)</label>
+              <input type="number" step="any" id="stock-form-fib60" class="form-input" placeholder="0.00" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">⚡ مؤشر القوة RSI</label>
+              <input type="number" step="any" id="stock-form-rsi" class="form-input" placeholder="مثال: 45.5" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">📊 مؤشر MACD</label>
+              <input type="text" id="stock-form-macd" class="form-input" placeholder="مثال: تقاطع إيجابي / فوق الصفر" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">📈 المتوسط المتحرك (MA)</label>
+              <input type="text" id="stock-form-ma" class="form-input" placeholder="مثال: أعلى متوسط 50 يوم" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">📦 متوسط حجم التداول</label>
+              <input type="text" id="stock-form-volume" class="form-input" placeholder="مثال: 1,500,000" />
+            </div>
+          </div>
+
+          <!-- Chart Upload & Notes -->
+          <div class="form-group">
+            <label class="form-label">📊 صورة الشارت الفني (رفع من جهازك أو وضع رابط)</label>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+              <input type="file" id="stock-form-image-file" accept="image/*" class="form-input" style="flex:1;" />
+              <input type="url" id="stock-form-image-url" class="form-input" placeholder="أو ضع رابط صورة مباشر..." style="flex:1;" />
+            </div>
+            <div class="chart-preview-box" id="stock-chart-preview" style="margin-top:0.5rem;">
+              <span style="font-size:0.75rem; color:var(--text-dim);">لم يتم إرفاق صورة شارت بعد</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">📝 ملاحظات إضافية وخطة المستثمر</label>
+            <textarea id="stock-form-notes" class="form-textarea" placeholder="اكتب هنا أي تفاصيل أو خطة للدخول والخروج..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('stock-form-modal')">إلغاء</button>
+          <button type="submit" class="btn btn-primary">💾 حفظ السهم</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Stock Details & Analytics Modal -->
+  <div class="modal-overlay" id="stock-details-modal">
+    <div class="modal-box" style="max-width:760px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <span class="stock-symbol-tag" id="details-stock-symbol">SYMBOL</span>
+          <div>
+            <h3 class="modal-title" id="details-stock-name">اسم الشركة</h3>
+            <span style="font-size:0.725rem; color:var(--accent-amber);" id="details-stock-section">القسم</span>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <span style="font-size:1.15rem; font-weight:800; color:#ffffff;" id="details-stock-price">0.00 ج.م</span>
+          <button class="modal-close-btn" onclick="closeModal('stock-details-modal')">&times;</button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <!-- Summary Stats Matrix -->
+        <div class="details-summary-grid" id="details-summary-matrix"></div>
+
+        <!-- Technical & Targets Grid -->
+        <div>
+          <h4 style="font-size:0.85rem; font-weight:700; color:var(--text-muted); margin-bottom:0.5rem;">🎯 الأهداف والمؤشرات الفنية ودعوم فيبوناتشي</h4>
+          <div class="details-summary-grid" id="details-tech-matrix"></div>
+        </div>
+
+        <!-- Chart Container -->
+        <div id="details-chart-container" style="display:none;"></div>
+
+        <!-- Notes Container -->
+        <div id="details-notes-container" style="display:none;"></div>
+      </div>
+
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button type="button" class="btn btn-danger" id="details-delete-btn">🗑️ حذف السهم</button>
+        <div style="display:flex; gap:0.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('stock-details-modal')">إغلاق</button>
+          <button type="button" class="btn btn-primary" id="details-edit-btn">✏️ تعديل البيانات</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Section Config Modal -->
+  <div class="modal-overlay" id="section-config-modal">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ تعديل خطة وقاعدة القسم</h3>
+        <button class="modal-close-btn" onclick="closeModal('section-config-modal')">&times;</button>
+      </div>
+
+      <form id="section-config-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">اسم القسم *</label>
+            <input type="text" id="section-cfg-title" class="form-input" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">نسبة تخصيص الإيداع من المحفظة (%) *</label>
+            <input type="number" min="1" max="100" id="section-cfg-ratio" class="form-input" required />
+            <span style="font-size:0.7rem; color:var(--text-dim);">النسبة المئوية المخصصة من الإيداع الشهري لهذا القسم</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">قاعدة واستراتيجية القسم *</label>
+            <textarea id="section-cfg-rule" class="form-textarea" required></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('section-config-modal')">إلغاء</button>
+          <button type="submit" class="btn btn-primary">حفظ التعديل</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 4: Generic Number Value Edit Modal -->
+  <div class="modal-overlay" id="value-edit-modal">
+    <div class="modal-box" style="max-width:380px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="value-edit-title">تعديل القيمة</h3>
+        <button class="modal-close-btn" onclick="closeModal('value-edit-modal')">&times;</button>
+      </div>
+
+      <form id="value-edit-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" id="value-edit-label">القيمة الجديدة (ج.م):</label>
+            <input type="number" step="any" id="value-edit-input" class="form-input" required autofocus />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('value-edit-modal')">إلغاء</button>
+          <button type="submit" class="btn btn-primary">تأكيد الحفظ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 5: Quick Search Modal -->
+  <div class="modal-overlay" id="search-modal">
+    <div class="modal-box" style="max-width:540px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.5rem; width:100%;">
+          <span style="font-size:1.1rem;">🔍</span>
+          <input type="text" id="search-input" placeholder="ابحث برمز السهم (مثل TMGH) أو الاسم أو الملاحظات..." class="form-input" style="width:100%; border:none; background:transparent;" />
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('search-modal')">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="search-results-list" id="search-results-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Standalone Script -->
+  <script type="module" src="./script.js"></script>
+</body>
+</html>
