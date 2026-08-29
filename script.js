@@ -2,7 +2,6 @@
  * Stock & Portfolio Manager - Firebase Cloud Edition
  */
 
-// 1. استدعاء مكتبات Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
@@ -24,10 +23,10 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-let currentUser = null; // المستخدم الحالي
+let currentUser = null;
 
 // ==========================================
-// DEFAULT DATA
+// DEFAULT DATA (Zeroed Out for New Users)
 // ==========================================
 const DEFAULT_SECTIONS = [
   { id: "gold", title: "صناديق الذهب", ratio: 0.15, rule: "تحوط وتأمين - شراء دوري ثابت" },
@@ -35,19 +34,28 @@ const DEFAULT_SECTIONS = [
   { id: "longTerm", title: "الأسهم طويلة المدى (استثمار)", ratio: 0.40, rule: "أفق 3 - 10 سنوات" },
   { id: "speculative", title: "الأسهم قصيرة المدى والمضاربة", ratio: 0.25, rule: "التزام صارم بوقف الخسارة" }
 ];
-const DEFAULT_DEPOSIT = { baseAmount: 1000, growthRate: 0.20, totalDeposited: 15000, freeCash: 3500, month: "فبراير", year: 2026, lastMonthIndex: new Date().getMonth() };
-const DEFAULT_STOCKS = []; // يبدأ بملف فارغ
 
-// ==========================================
-// STATE MANAGEMENT & CLOUD STORAGE
-// ==========================================
+// تصفير كافة الأرقام الافتراضية
+const DEFAULT_DEPOSIT = { 
+  baseAmount: 0, 
+  growthRate: 0.20, 
+  totalDeposited: 0, 
+  freeCash: 0, 
+  month: "الحالي", 
+  year: new Date().getFullYear(), 
+  lastMonthIndex: new Date().getMonth() 
+};
+const DEFAULT_STOCKS = [];
+
 let sections = [];
 let stocks = [];
 let depositData = {};
 let activeStockForDetails = null;
 let dismissedAlerts = [];
 
-// جلب البيانات من السحابة بناءً على حساب المستخدم
+// ==========================================
+// CLOUD STORAGE & SYNC
+// ==========================================
 async function loadStateFromCloud(uid) {
   try {
     const docRef = doc(db, "users", uid);
@@ -60,7 +68,6 @@ async function loadStateFromCloud(uid) {
       depositData = data.depositData || DEFAULT_DEPOSIT;
       dismissedAlerts = data.dismissedAlerts || [];
     } else {
-      // مستخدم جديد: إنشاء ملف سحابي له بالبيانات الافتراضية
       sections = DEFAULT_SECTIONS;
       stocks = DEFAULT_STOCKS;
       depositData = DEFAULT_DEPOSIT;
@@ -68,7 +75,6 @@ async function loadStateFromCloud(uid) {
       await saveToCloud();
     }
 
-    // دورة الإيداع الشهرية
     const currentMonthIdx = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
@@ -83,11 +89,9 @@ async function loadStateFromCloud(uid) {
     renderAll();
   } catch (error) {
     console.error("Error loading from cloud:", error);
-    alert("حدث خطأ أثناء الاتصال بقاعدة البيانات.");
   }
 }
 
-// حفظ جميع التعديلات في السحابة فوراً
 async function saveToCloud() {
   if (!currentUser) return;
   try {
@@ -103,23 +107,98 @@ async function saveToCloud() {
   }
 }
 
-// توجيه دوال الحفظ القديمة للسحابة
 function saveSections() { saveToCloud(); }
 function saveStocks() { saveToCloud(); }
 function saveDeposit() { saveToCloud(); }
 
-function dismissAlert(e, alertKey) {
-  e.stopPropagation();
-  if (!dismissedAlerts.includes(alertKey)) {
-    dismissedAlerts.push(alertKey);
-    saveToCloud();
-    renderAll();
+// ==========================================
+// RENDER KPI & DASHBOARD
+// ==========================================
+function renderDashboardSummary() {
+  let totalStockCost = 0; 
+  let totalStockValue = 0;
+  
+  stocks.forEach(s => {
+    if (s.section && !s.section.startsWith("watchlist") && s.quantity && s.quantity > 0) {
+      const q = Number(s.quantity); 
+      const buy = Number(s.buyPrice || 0); 
+      const curr = Number(s.currentPrice || 0);
+      totalStockCost += q * buy; 
+      totalStockValue += q * curr;
+    }
+  });
+
+  const freeCash = Number(depositData.freeCash || 0);
+  const totalDeposited = Number(depositData.totalDeposited || 0);
+  
+  // إجمالي المحفظة = قيمة الأسهم السوقية الحالية + الكاش الحر
+  const totalAssets = totalStockValue + freeCash;
+  
+  // التعديل الجديد: الربح الكلي يحسب بناءً على الفرق بين إجمالي الأصول وإجمالي ما قمت بإيداعه فعلياً
+  const totalProfitLoss = totalAssets - totalDeposited;
+  const profitPct = totalDeposited > 0 ? (totalProfitLoss / totalDeposited) * 100 : 0;
+  const isPos = totalProfitLoss >= 0;
+
+  const assetsEl = document.getElementById("kpi-total-assets");
+  const pnlEl = document.getElementById("kpi-pnl-pill");
+  if (assetsEl) assetsEl.innerText = totalAssets.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (pnlEl) {
+    pnlEl.className = `profit-pill ${isPos ? "profit-pos" : "profit-neg"}`;
+    pnlEl.innerHTML = `<span>${isPos ? "▲ +" : "▼ "}${totalProfitLoss.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</span><span>(${isPos ? "+" : ""}${profitPct.toFixed(2)}%)</span>`;
   }
+  
+  const depEl = document.getElementById("kpi-total-deposited");
+  if (depEl) depEl.innerText = totalDeposited.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
+  const cashEl = document.getElementById("kpi-free-cash");
+  const cashPctEl = document.getElementById("kpi-cash-pct");
+  if (cashEl) cashEl.innerText = freeCash.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (cashPctEl && totalAssets > 0) cashPctEl.innerText = `${((freeCash / totalAssets) * 100).toFixed(1)}% من إجمالي المحفظة`;
+  
+  const monthlyEl = document.getElementById("kpi-monthly-deposit");
+  const monthNameEl = document.getElementById("kpi-deposit-month-name");
+  if (monthlyEl) monthlyEl.innerText = Number(depositData.baseAmount || 0).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (monthNameEl) monthNameEl.innerText = `هدف شهر ${depositData.month || "الحالي"}`;
 }
 
 // ==========================================
-// REAL-TIME ALERTS CALCULATION
+// GLOBAL EDIT FUNCTIONS (Fixes the undefined error)
 // ==========================================
+window.editFreeCash = function() {
+  openValueEditModal("تعديل السيولة النقدية الحرة", "المبلغ بالجنيه", depositData.freeCash, (val) => {
+    depositData.freeCash = val;
+    saveToCloud();
+    renderAll();
+  });
+};
+
+window.editTotalDeposited = function() {
+  openValueEditModal("تعديل مجموع الإيداعات", "المبلغ بالجنيه", depositData.totalDeposited, (val) => {
+    depositData.totalDeposited = val;
+    saveToCloud();
+    renderAll();
+  });
+};
+
+window.editBaseAmount = function() {
+  openValueEditModal("تعديل الإيداع الشهري المستهدف", "المبلغ بالجنيه", depositData.baseAmount, (val) => {
+    depositData.baseAmount = val;
+    saveToCloud();
+    renderAll();
+  });
+};
+
+// ==========================================
+// REST OF RENDERING & LOGIC
+// ==========================================
+function updateDateDisplay() {
+  const dateEl = document.getElementById("current-date-text");
+  if (dateEl) {
+    const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
+    dateEl.innerText = new Date().toLocaleDateString("ar-EG", options);
+  }
+}
+
 function getStockAlerts() {
   const alerts = [];
   stocks.forEach(stock => {
@@ -159,17 +238,6 @@ function getStockAlerts() {
   return alerts;
 }
 
-// ==========================================
-// RENDERING FUNCTIONS
-// ==========================================
-function updateDateDisplay() {
-  const dateEl = document.getElementById("current-date-text");
-  if (dateEl) {
-    const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" };
-    dateEl.innerText = new Date().toLocaleDateString("ar-EG", options);
-  }
-}
-
 function renderAlertsTicker() {
   const container = document.getElementById("alerts-container");
   const badgeCount = document.getElementById("header-alert-count");
@@ -185,41 +253,6 @@ function renderAlertsTicker() {
     html += `<div class="alert-item ${alert.className}" onclick="openStockDetailsById('${alert.stockId}')"><strong>${alert.symbol}:</strong><span>${alert.text}</span><button onclick="dismissAlert(event, '${alert.key}')" class="dismiss-alert-btn">✖</button></div>`;
   });
   container.innerHTML = html;
-}
-
-function renderDashboardSummary() {
-  let totalStockCost = 0; let totalStockValue = 0;
-  stocks.forEach(s => {
-    if (s.section && !s.section.startsWith("watchlist") && s.quantity && s.quantity > 0) {
-      const q = Number(s.quantity); const buy = Number(s.buyPrice || 0); const curr = Number(s.currentPrice || 0);
-      totalStockCost += q * buy; totalStockValue += q * curr;
-    }
-  });
-  const freeCash = Number(depositData.freeCash || 0);
-  const totalDeposited = Number(depositData.totalDeposited || 0);
-  const totalAssets = totalStockValue + freeCash;
-  const totalProfitLoss = totalStockValue - totalStockCost;
-  const profitPct = totalStockCost > 0 ? (totalProfitLoss / totalStockCost) * 100 : 0;
-  const isPos = totalProfitLoss >= 0;
-
-  const assetsEl = document.getElementById("kpi-total-assets");
-  const pnlEl = document.getElementById("kpi-pnl-pill");
-  if (assetsEl) assetsEl.innerText = totalAssets.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (pnlEl) {
-    pnlEl.className = `profit-pill ${isPos ? "profit-pos" : "profit-neg"}`;
-    pnlEl.innerHTML = `<span>${isPos ? "▲ +" : "▼ "}${totalProfitLoss.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</span><span>(${isPos ? "+" : ""}${profitPct.toFixed(2)}%)</span>`;
-  }
-  const depEl = document.getElementById("kpi-total-deposited");
-  if (depEl) depEl.innerText = totalDeposited.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const cashEl = document.getElementById("kpi-free-cash");
-  const cashPctEl = document.getElementById("kpi-cash-pct");
-  if (cashEl) cashEl.innerText = freeCash.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (cashPctEl && totalAssets > 0) cashPctEl.innerText = `${((freeCash / totalAssets) * 100).toFixed(1)}% من إجمالي المحفظة`;
-  
-  const monthlyEl = document.getElementById("kpi-monthly-deposit");
-  const monthNameEl = document.getElementById("kpi-deposit-month-name");
-  if (monthlyEl) monthlyEl.innerText = Number(depositData.baseAmount || 0).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (monthNameEl) monthNameEl.innerText = `هدف شهر ${depositData.month || "الحالي"} (+${Math.round((depositData.growthRate || 0.20) * 100)}% شهرياً)`;
 }
 
 function renderSections() {
@@ -336,9 +369,6 @@ function renderAll() {
   renderWatchlist();
 }
 
-// ==========================================
-// MODALS & USER INTERACTIONS
-// ==========================================
 function openModal(modalId) { const el = document.getElementById(modalId); if (el) el.classList.add("active"); }
 function closeModal(modalId) { const el = document.getElementById(modalId); if (el) el.classList.remove("active"); }
 
@@ -483,6 +513,7 @@ function openSectionConfigModal(sectionId) {
   document.getElementById("section-cfg-rule").value = sec.rule;
   openModal("section-config-modal");
 }
+
 function handleSectionConfigSubmit(e) {
   e.preventDefault(); if (!activeSectionConfigId) return;
   const sec = sections.find(s => s.id === activeSectionConfigId); if (!sec) return;
@@ -499,6 +530,7 @@ function openValueEditModal(title, label, initialVal, onSave) {
   document.getElementById("value-edit-input").value = initialVal || 0;
   activeValueEditCallback = onSave; openModal("value-edit-modal");
 }
+
 function handleValueEditSubmit(e) {
   e.preventDefault(); const val = parseFloat(document.getElementById("value-edit-input").value);
   if (!isNaN(val) && activeValueEditCallback) { activeValueEditCallback(val); renderAll(); closeModal("value-edit-modal"); }
@@ -518,33 +550,17 @@ function renderSearchResults(query) {
   container.innerHTML = html;
 }
 
-function exportDataBackup() {
-  const backup = { sections, stocks, depositData, dismissedAlerts, exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url;
-  a.download = `portfolio-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(url);
+function dismissAlert(e, alertKey) {
+  e.stopPropagation();
+  if (!dismissedAlerts.includes(alertKey)) {
+    dismissedAlerts.push(alertKey);
+    saveToCloud();
+    renderAll();
+  }
 }
 
-function importDataBackup(event) {
-  const file = event.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (data.stocks) {
-        stocks = data.stocks; if (data.sections) sections = data.sections; if (data.depositData) depositData = data.depositData;
-        if (data.dismissedAlerts) dismissedAlerts = data.dismissedAlerts;
-        saveToCloud(); renderAll(); alert("✅ تم استيراد بيانات المحفظة بنجاح ورفعها للسحابة!");
-      }
-    } catch (err) { alert("❌ حدث خطأ أثناء قراءة الملف."); }
-  };
-  reader.readAsText(file);
-}
-
-// إتاحة الدوال للاستخدام المباشر في HTML
+// Window Attachments
 window.openSearchModal = openSearchModal;
-window.exportDataBackup = exportDataBackup;
-window.importDataBackup = importDataBackup;
 window.openAddStockModal = openAddStockModal;
 window.openEditStockModal = openEditStockModal;
 window.deleteStock = deleteStock;
@@ -554,13 +570,10 @@ window.openValueEditModal = openValueEditModal;
 window.dismissAlert = dismissAlert;
 window.closeModal = closeModal;
 
-
 // ==========================================
-// 6. INITIALIZATION & EVENT LISTENERS
+// INITIALIZATION & LISTENERS
 // ==========================================
 document.addEventListener("DOMContentLoaded", function() {
-  
-  // الاستماع لحالة تسجيل الدخول
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       currentUser = user;
@@ -573,20 +586,16 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
-  // زر تسجيل الدخول
-  document.getElementById('google-login-btn').addEventListener('click', () => {
-    signInWithPopup(auth, provider).catch(error => {
-      console.error("Login failed:", error);
-      alert("فشل تسجيل الدخول: " + error.message);
+  const googleLoginBtn = document.getElementById('google-login-btn');
+  if (googleLoginBtn) {
+    googleLoginBtn.addEventListener('click', () => {
+      signInWithPopup(auth, provider).catch(error => alert("فشل تسجيل الدخول: " + error.message));
     });
-  });
+  }
 
-  // زر تسجيل الخروج
   const logoutBtn = document.getElementById('logout-btn');
   if(logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      signOut(auth).then(() => { alert("تم تسجيل الخروج بنجاح."); });
-    });
+    logoutBtn.addEventListener('click', () => signOut(auth).then(() => alert("تم تسجيل الخروج.")));
   }
 
   // نماذج الإدخال
@@ -594,7 +603,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const secCfgForm = document.getElementById("section-config-form"); if (secCfgForm) secCfgForm.addEventListener("submit", handleSectionConfigSubmit);
   const valEditForm = document.getElementById("value-edit-form"); if (valEditForm) valEditForm.addEventListener("submit", handleValueEditSubmit);
   const searchInput = document.getElementById("search-input"); if (searchInput) searchInput.addEventListener("input", handleSearchInput);
-  const importInput = document.getElementById("import-backup-file"); if (importInput) importInput.addEventListener("change", importDataBackup);
 
   window.addEventListener("keydown", function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearchModal(); }
