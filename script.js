@@ -632,6 +632,36 @@ window.openValueEditModal = openValueEditModal;
 window.dismissAlert = dismissAlert;
 window.closeModal = closeModal;
 
+// دوال الإيداع التراكمي (مربوطة بالـ window لكي يراها HTML)
+window.markDepositCompleted = function() {
+  depositData.isCompleted = true;
+  saveToCloud();
+  renderAll();
+};
+
+window.openDepositSettingsModal = function() {
+  document.getElementById("dep-month-input").value = depositData.lastMonthIndex || 0;
+  document.getElementById("dep-amount-input").value = depositData.baseAmount || 0;
+  document.getElementById("dep-growth-input").value = depositData.growthRate !== undefined ? depositData.growthRate : 20;
+  openModal("deposit-settings-modal");
+};
+// في حال نسينا ربط الدالة الخاصة بحفظ نموذج الإيداع
+const depForm = document.getElementById("deposit-settings-form");
+if(depForm) {
+  depForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    depositData.lastMonthIndex = parseInt(document.getElementById("dep-month-input").value);
+    depositData.baseAmount = parseFloat(document.getElementById("dep-amount-input").value) || 0;
+    depositData.growthRate = parseFloat(document.getElementById("dep-growth-input").value) || 0;
+    
+    // إعادة تفعيل التنبيه عند تعديل الخطة
+    depositData.isCompleted = false; 
+    
+    saveToCloud();
+    renderAll();
+    closeModal("deposit-settings-modal");
+  });
+}
 // ==========================================
 // INITIALIZATION & LISTENERS
 // ==========================================
