@@ -585,7 +585,7 @@ function handleSectionConfigSubmit(e) {
   saveSections(); renderAll(); closeModal("section-config-modal");
 }
 
-let activeValueEditCallback = null;
+var activeValueEditCallback = null;
 function openValueEditModal(title, label, initialVal, onSave) {
   document.getElementById("value-edit-title").innerText = title;
   document.getElementById("value-edit-label").innerText = label;
