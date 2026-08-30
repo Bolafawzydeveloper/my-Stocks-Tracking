@@ -674,8 +674,7 @@ document.addEventListener("DOMContentLoaded", function() {
       // التعديل الجديد: تحديث عنوان المحفظة باسم المستخدم
       const userName = user.displayName || "مستخدم جديد";
       const headerTitle = document.getElementById('main-app-title');
-      if(headerTitle) headerTitle.innerText = `لوحة تحكم المحفظة الاستثمارية (${userName})`;
-      
+      if(headerTitle) headerTitle.innerText = `لوحة تحكم المحفظة الاستثمارية (الخاصة بـ ${userName})`;
       await loadStateFromCloud(user.uid);
     } else {
       currentUser = null;
