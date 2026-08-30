@@ -213,6 +213,7 @@
         <div class="modal-body">
           <!-- Main Info -->
           <div class="form-grid">
+            
             <div class="form-group">
               <label class="form-label">القسم / التصنيف *</label>
                <select id="stock-form-section" class="form-select" required>
@@ -224,6 +225,24 @@
                   <option value="watchlistShort">⚡ قائمة المراقبة (مضاربة وقصيرة المدى)</option>
                 </select>
             </div>
+
+            <!-- بداية كود القطاع الجديد الذي تمت إضافته -->
+            <div class="form-group">
+              <label class="form-label">القطاع (اختياري)</label>
+              <select id="stock-form-sector" class="form-input">
+                <option value="">غير محدد</option>
+                <option value="الأدوية والمستشفيات">الأدوية والمستشفيات</option>
+                <option value="العقارات والإنشاءات">العقارات والإنشاءات</option>
+                <option value="الأسمنت">الأسمنت</option>
+                <option value="السياحة">السياحة</option>
+                <option value="البتروكيماويات">البتروكيماويات</option>
+                <option value="البنوك">البنوك</option>
+                <option value="الأغذية">الأغذية</option>
+                <option value="الطاقة">الطاقة</option>
+                <option value="أخرى">أخرى...</option>
+              </select>
+            </div>
+            <!-- نهاية كود القطاع -->
 
             <div class="form-group">
               <label class="form-label">رمز السهم (Symbol) *</label>

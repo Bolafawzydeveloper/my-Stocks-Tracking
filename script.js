@@ -326,7 +326,11 @@ function renderStockCard(stock, isWatchlist = false) {
         <div class="stock-card-top">
           <div class="stock-identity">
             <span class="stock-symbol-tag">${stock.symbol}</span>
-            <div><h4 class="stock-name-title">${stock.name}</h4>${stock.customNotes ? `<span style="font-size:0.68rem; color:var(--text-dim); display:block; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📝 ${stock.customNotes}</span>` : ""}</div>
+            <div>
+              <h4 class="stock-name-title">${stock.name}</h4>
+              ${stock.sector ? `<span style="font-size:0.75rem; color:#94a3b8; display:block; margin-top:2px;">🏢 ${stock.sector}</span>` : ""}
+              ${stock.customNotes ? `<span style="font-size:0.68rem; color:var(--text-dim); display:block; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📝 ${stock.customNotes}</span>` : ""}
+            </div>
           </div>
           <div class="stock-price-display">
             <div class="current-price-val">${curr.toLocaleString("ar-EG", {minimumFractionDigits:2})} <span class="price-currency">ج.م</span></div>
@@ -377,6 +381,7 @@ function openAddStockModal(defaultSection = "longTerm") {
   document.getElementById("stock-form-id").value = "";
   document.getElementById("stock-modal-title").innerText = "➕ إضافة أصل / سهم جديد";
   document.getElementById("stock-form-section").value = defaultSection;
+  if(document.getElementById("stock-form-sector")) document.getElementById("stock-form-sector").value = "";
   document.getElementById("stock-chart-preview").innerHTML = `<span style="font-size:0.75rem; color:var(--text-dim);">لم يتم إرفاق صورة شارت بعد</span>`;
   document.getElementById("stock-form-image-base64").value = "";
   openModal("stock-form-modal");
@@ -387,6 +392,7 @@ function openEditStockModal(stockId) {
   document.getElementById("stock-form-id").value = stock.id;
   document.getElementById("stock-modal-title").innerText = `✏️ تعديل بيانات السهم (${stock.symbol})`;
   document.getElementById("stock-form-section").value = stock.section;
+  if(document.getElementById("stock-form-sector")) document.getElementById("stock-form-sector").value = stock.sector || "";
   document.getElementById("stock-form-symbol").value = stock.symbol;
   document.getElementById("stock-form-name").value = stock.name;
   document.getElementById("stock-form-quantity").value = stock.quantity || 0;
@@ -418,6 +424,7 @@ function handleStockFormSubmit(e) {
   const newStock = {
     id,
     section: document.getElementById("stock-form-section").value,
+    sector: document.getElementById("stock-form-sector") ? document.getElementById("stock-form-sector").value : "",
     symbol: document.getElementById("stock-form-symbol").value.trim().toUpperCase(),
     name: document.getElementById("stock-form-name").value.trim(),
     quantity: parseFloat(document.getElementById("stock-form-quantity").value) || 0,
@@ -452,17 +459,30 @@ function deleteStock(stockId) {
 }
 
 function openStockDetailsById(stockId) {
-  const stock = stocks.find(s => s.id === stockId); if (!stock) return;
+  const stock = stocks.find(s => s.id === stockId); 
+  if (!stock) return;
   activeStockForDetails = stock;
-  const curr = Number(stock.currentPrice || 0); const buy = Number(stock.buyPrice || 0); const q = Number(stock.quantity || 0);
-  const totalCost = q * buy; const totalVal = q * curr; const pnl = totalVal - totalCost; const pnlPct = buy > 0 ? ((curr - buy) / buy) * 100 : 0;
-  const isPos = pnl >= 0; const isWatch = stock.section && stock.section.startsWith("watchlist");
-  const sec = sections.find(s => s.id === stock.section); const secName = isWatch ? "قائمة المراقبة ⭐" : (sec ? sec.title : "عام");
+  
+  const curr = Number(stock.currentPrice || 0); 
+  const buy = Number(stock.buyPrice || 0); 
+  const q = Number(stock.quantity || 0);
+  const totalCost = q * buy; 
+  const totalVal = q * curr; 
+  const pnl = totalVal - totalCost; 
+  const pnlPct = buy > 0 ? ((curr - buy) / buy) * 100 : 0;
+  const isPos = pnl >= 0; 
+  const isWatch = stock.section && stock.section.startsWith("watchlist");
+  const sec = sections.find(s => s.id === stock.section); 
+  const secName = isWatch ? "قائمة المراقبة ⭐" : (sec ? sec.title : "عام");
   
   let riskRewardText = "غير محدد";
   if (stock.target1 && stock.stopLoss && curr > stock.stopLoss) {
-    const gain = Number(stock.target1) - curr; const loss = curr - Number(stock.stopLoss);
-    if (loss > 0) { const rr = (gain / loss).toFixed(2); riskRewardText = `1 : ${rr} ${rr >= 2 ? "✅" : "⚠️"}`; }
+    const gain = Number(stock.target1) - curr; 
+    const loss = curr - Number(stock.stopLoss);
+    if (loss > 0) { 
+      const rr = (gain / loss).toFixed(2); 
+      riskRewardText = `1 : ${rr} ${rr >= 2 ? "✅" : "⚠️"}`; 
+    }
   }
   
   document.getElementById("details-stock-symbol").innerText = stock.symbol;
@@ -472,6 +492,7 @@ function openStockDetailsById(stockId) {
 
   document.getElementById("details-summary-matrix").innerHTML = `
     <div class="details-stat-card"><span class="details-stat-label">حالة السهم</span><span class="details-stat-val">${isWatch ? "مراقبة" : "مملوك"}</span></div>
+    <div class="details-stat-card"><span class="details-stat-label">القطاع</span><span class="details-stat-val">${stock.sector || "غير محدد"}</span></div>
     <div class="details-stat-card"><span class="details-stat-label">الكمية</span><span class="details-stat-val">${isWatch ? "-" : q.toLocaleString("ar-EG")}</span></div>
     <div class="details-stat-card"><span class="details-stat-label">متوسط الشراء</span><span class="details-stat-val">${isWatch ? "-" : buy.toLocaleString("ar-EG", {minimumFractionDigits:2}) + " ج.م"}</span></div>
     <div class="details-stat-card"><span class="details-stat-label">إجمالي القيمة</span><span class="details-stat-val">${isWatch ? "-" : totalVal.toLocaleString("ar-EG", {minimumFractionDigits:2}) + " ج.م"}</span></div>
@@ -491,16 +512,26 @@ function openStockDetailsById(stockId) {
   if (stock.imageBase64 || stock.imageUrl) {
     chartBox.innerHTML = `<div class="chart-preview-box" style="max-height:360px;"><img src="${stock.imageBase64 || stock.imageUrl}" alt="شارت" /></div>`;
     chartBox.style.display = "block";
-  } else chartBox.style.display = "none";
+  } else {
+    chartBox.style.display = "none";
+  }
 
   const notesBox = document.getElementById("details-notes-container");
   if (stock.customNotes) {
     notesBox.innerHTML = `<div style="background:var(--bg-inner); padding:0.75rem; border-radius:var(--radius-sm); font-size:0.8rem; color:#ffffff;">${stock.customNotes}</div>`;
     notesBox.style.display = "block";
-  } else notesBox.style.display = "none";
+  } else {
+    notesBox.style.display = "none";
+  }
 
-  document.getElementById("details-edit-btn").onclick = () => { closeModal("stock-details-modal"); openEditStockModal(stock.id); };
-  document.getElementById("details-delete-btn").onclick = () => { deleteStock(stock.id); };
+  document.getElementById("details-edit-btn").onclick = () => { 
+    closeModal("stock-details-modal"); 
+    openEditStockModal(stock.id); 
+  };
+  document.getElementById("details-delete-btn").onclick = () => { 
+    deleteStock(stock.id); 
+  };
+  
   openModal("stock-details-modal");
 }
 
