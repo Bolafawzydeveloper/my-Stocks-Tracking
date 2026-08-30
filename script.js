@@ -38,12 +38,13 @@ const DEFAULT_SECTIONS = [
 // تصفير كافة الأرقام الافتراضية
 const DEFAULT_DEPOSIT = { 
   baseAmount: 0, 
-  growthRate: 0.20, 
+  growthRate: 20, 
   totalDeposited: 0, 
   freeCash: 0, 
   month: "الحالي", 
   year: new Date().getFullYear(), 
-  lastMonthIndex: new Date().getMonth() 
+  lastMonthIndex: new Date().getMonth(),
+  isCompleted: false 
 };
 const DEFAULT_STOCKS = [];
 
@@ -78,12 +79,17 @@ async function loadStateFromCloud(uid) {
     const currentMonthIdx = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
-
-    if (depositData.lastMonthIndex !== currentMonthIdx) {
-      depositData.baseAmount = Number((depositData.baseAmount * (1 + (depositData.growthRate || 0.20))).toFixed(2));
+    // فحص دخول شهر جديد
+    if (depositData.lastMonthIndex !== currentMonthIdx || depositData.year !== currentYear) {
+      // حساب الزيادة الجديدة بناءً على النسبة
+      const growthDecimal = (depositData.growthRate || 0) / 100;
+      depositData.baseAmount = Number((depositData.baseAmount * (1 + growthDecimal)).toFixed(2));
+      
+      // تحديث الشهر، وتفعيل التنبيه الأحمر من جديد!
       depositData.lastMonthIndex = currentMonthIdx;
       depositData.month = monthNames[currentMonthIdx];
       depositData.year = currentYear;
+      depositData.isCompleted = false; 
       saveToCloud();
     }
     renderAll();
@@ -155,10 +161,38 @@ function renderDashboardSummary() {
   if (cashEl) cashEl.innerText = freeCash.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (cashPctEl && totalAssets > 0) cashPctEl.innerText = `${((freeCash / totalAssets) * 100).toFixed(1)}% من إجمالي المحفظة`;
   
+ const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+  
   const monthlyEl = document.getElementById("kpi-monthly-deposit");
   const monthNameEl = document.getElementById("kpi-deposit-month-name");
+  const statusEl = document.getElementById("kpi-deposit-status");
+  const alertBox = document.getElementById("monthly-deposit-alert");
+  const alertAmount = document.getElementById("alert-deposit-amount");
+
   if (monthlyEl) monthlyEl.innerText = Number(depositData.baseAmount || 0).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (monthNameEl) monthNameEl.innerText = `هدف شهر ${depositData.month || "الحالي"}`;
+  if (monthNameEl) monthNameEl.innerText = `هدف شهر ${monthNames[depositData.lastMonthIndex || 0]}`;
+  
+  // تحديث حالة السداد
+  if (statusEl) {
+    if (depositData.isCompleted) {
+      statusEl.innerText = "✅ مكتمل";
+      statusEl.style.backgroundColor = "rgba(16, 185, 129, 0.2)";
+      statusEl.style.color = "var(--accent-emerald)";
+    } else {
+      statusEl.innerText = "⏳ بانتظار الإيداع";
+      statusEl.style.backgroundColor = "rgba(245, 158, 11, 0.2)";
+      statusEl.style.color = "var(--accent-amber)";
+    }
+  }
+  // التحكم في ظهور التنبيه القوي
+  if (alertBox && alertAmount) {
+    if (!depositData.isCompleted && depositData.baseAmount > 0) {
+      alertAmount.innerText = Number(depositData.baseAmount).toLocaleString("ar-EG", {minimumFractionDigits: 2});
+      alertBox.style.display = "block";
+    } else {
+      alertBox.style.display = "none";
+    }
+  }
 }
 
 // ==========================================
@@ -180,14 +214,11 @@ window.editTotalDeposited = function() {
   });
 };
 
-window.editBaseAmount = function() {
   openValueEditModal("تعديل الإيداع الشهري المستهدف", "المبلغ بالجنيه", depositData.baseAmount, (val) => {
     depositData.baseAmount = val;
     saveToCloud();
     renderAll();
   });
-};
-
 // ==========================================
 // REST OF RENDERING & LOGIC
 // ==========================================
