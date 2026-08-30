@@ -818,6 +818,4 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".modal-overlay").forEach(overlay => {
     overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.classList.remove("active"); });
   });
-
-  renderAll();
-});
+  
