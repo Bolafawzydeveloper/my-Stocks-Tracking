@@ -3,7 +3,7 @@
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, updateProfile} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // 2. إعدادات مشروعك
@@ -609,6 +609,12 @@ document.addEventListener("DOMContentLoaded", function() {
     if (user) {
       currentUser = user;
       document.getElementById('login-overlay').style.display = 'none';
+      
+      // التعديل الجديد: تحديث عنوان المحفظة باسم المستخدم
+      const userName = user.displayName || "مستخدم جديد";
+      const headerTitle = document.getElementById('main-app-title');
+      if(headerTitle) headerTitle.innerText = `لوحة تحكم المحفظة الاستثمارية (${userName})`;
+      
       await loadStateFromCloud(user.uid);
     } else {
       currentUser = null;
@@ -616,6 +622,35 @@ document.addEventListener("DOMContentLoaded", function() {
       sections = []; stocks = []; depositData = {};
     }
   });
+
+// دوال إعدادات الحساب
+window.openAccountSettingsModal = function() {
+  if(currentUser) {
+    document.getElementById("acc-name-input").value = currentUser.displayName || "";
+    openModal("account-settings-modal");
+  }
+};
+
+const accForm = document.getElementById("account-settings-form");
+if (accForm) {
+  accForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const newName = document.getElementById("acc-name-input").value.trim();
+    if (currentUser && newName) {
+      try {
+        await updateProfile(currentUser, { displayName: newName });
+        // تحديث العنوان فوراً بعد التعديل
+        const headerTitle = document.getElementById('main-app-title');
+        if (headerTitle) headerTitle.innerText = `لوحة تحكم المحفظة الاستثمارية (${newName})`;
+        closeModal("account-settings-modal");
+        alert("تم تحديث اسم حسابك بنجاح!");
+      } catch (err) {
+        console.error(err);
+        alert("حدث خطأ أثناء تحديث الاسم.");
+      }
+    }
+  });
+}
 
   const googleLoginBtn = document.getElementById('google-login-btn');
   if (googleLoginBtn) {

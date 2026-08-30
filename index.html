@@ -5,7 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>لوحة تحكم المحفظة ومتابعة الأسهم</title>
   <meta name="description" content="نظام إدارة وتوزيع المحفظة الاستثمارية، قائمة المراقبة، وحساب الأرباح والخسائر والدعوم والأهداف الفنية.">
-  
+  <!-- أيقونات الموقع للمتصفح والموبايل -->
+  <link rel="icon" type="image/png" href="/media/logo 3 خلفية بيضاء.png" />
+  <link rel="apple-touch-icon" href="/media/logo 3 خلفية بيضاء.png" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes">
   <!-- Google Fonts: Cairo -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,6 +39,7 @@
         <button id="logout-btn" class="btn btn-secondary login-btn" style="height: 35px; box-shadow: none; font-size: 0.75rem; padding: 0 0.75rem;">
           👤 <span>تسجيل خروج</span>
         </button>
+        <button onclick="openAccountSettingsModal()" class="btn btn-secondary" style="padding: 0.4rem 1rem; font-size: 0.8rem;"><span>⚙️ تفاصيل الحساب</span></button>
         <button class="btn btn-primary" onclick="openAddStockModal('longTerm')" style="height: 35px; box-shadow: none; font-size: 0.75rem; padding: 0 0.75rem;">
           ➕ <span>إضافة سهم</span>
         </button>
@@ -42,7 +47,7 @@
 
       <!-- المنتصف: العنوان والتاريخ -->
       <div class="logo-section" style="flex: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-        <h1 style="font-size: 1.05rem; font-weight: 700; margin: 0; color: #ffffff;">لوحة تحكم المحفظة والاسهم (Bola Fawzy)</h1>
+        <h1 style="font-size: 1.05rem; font-weight: 700; margin: 0; color: #ffffff;">لوحة تحكم المحفظة الاستثمارية</h1>
         <p id="current-date-text" style="font-size: 0.725rem; color: var(--text-muted); margin: 0;">جاري تحميل التاريخ...</p>
       </div>
 
@@ -477,6 +482,28 @@
       <div class="modal-body">
         <div class="search-results-list" id="search-results-list"></div>
       </div>
+    </div>
+  </div>
+  <!-- Modal 6: Account Settings Modal -->
+  <div class="modal-overlay" id="account-settings-modal">
+    <div class="modal-box" style="max-width:380px;">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ تفاصيل وإعدادات الحساب</h3>
+        <button class="modal-close-btn" onclick="closeModal('account-settings-modal')">&times;</button>
+      </div>
+      <form id="account-settings-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">اسم المستخدم</label>
+            <input type="text" id="acc-name-input" class="form-input" required />
+            <span style="font-size:0.7rem; color:var(--text-dim); margin-top:4px; display:block;">هذا الاسم سيظهر في عنوان المحفظة الخاص بك.</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('account-settings-modal')">إلغاء</button>
+          <button type="submit" class="btn btn-primary">💾 حفظ التغييرات</button>
+        </div>
+      </form>
     </div>
   </div>
 
