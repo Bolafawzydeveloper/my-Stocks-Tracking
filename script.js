@@ -3,7 +3,7 @@
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, updateProfile} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 // 2. إعدادات مشروعك
@@ -36,15 +36,15 @@ const DEFAULT_SECTIONS = [
 ];
 
 // تصفير كافة الأرقام الافتراضية
-const DEFAULT_DEPOSIT = { 
-  baseAmount: 0, 
-  growthRate: 20, 
-  totalDeposited: 0, 
-  freeCash: 0, 
-  month: "الحالي", 
-  year: new Date().getFullYear(), 
+const DEFAULT_DEPOSIT = {
+  baseAmount: 0,
+  growthRate: 20,
+  totalDeposited: 0,
+  freeCash: 0,
+  month: "الحالي",
+  year: new Date().getFullYear(),
   lastMonthIndex: new Date().getMonth(),
-  isCompleted: false 
+  isCompleted: false
 };
 const DEFAULT_STOCKS = [];
 
@@ -78,20 +78,27 @@ async function loadStateFromCloud(uid) {
 
     const currentMonthIdx = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
-    // فحص دخول شهر جديد
-    if (depositData.lastMonthIndex !== currentMonthIdx || depositData.year !== currentYear) {
-      // حساب الزيادة الجديدة بناءً على النسبة
-      const growthDecimal = (depositData.growthRate || 0) / 100;
-      depositData.baseAmount = Number((depositData.baseAmount * (1 + growthDecimal)).toFixed(2));
-      
+
+    // --- الإصلاح القوي: تأمين البيانات المفقودة من الحفظ القديم ---
+    if (depositData.year === undefined) depositData.year = currentYear;
+    if (depositData.lastMonthIndex === undefined) depositData.lastMonthIndex = currentMonthIdx;
+    if (depositData.isCompleted === undefined) depositData.isCompleted = false;
+
+    // فحص دخول شهر جديد أو سنة جديدة
+    if (Number(depositData.lastMonthIndex) !== currentMonthIdx || Number(depositData.year) !== currentYear) {
+      const growthDecimal = (Number(depositData.growthRate) || 0) / 100;
+      depositData.baseAmount = Number((Number(depositData.baseAmount) * (1 + growthDecimal)).toFixed(2));
+
       // تحديث الشهر، وتفعيل التنبيه الأحمر من جديد!
       depositData.lastMonthIndex = currentMonthIdx;
       depositData.month = monthNames[currentMonthIdx];
       depositData.year = currentYear;
-      depositData.isCompleted = false; 
+      // إعادة التنبيه فقط إذا كان هناك بالفعل تغيير حقيقي في الشهر أو السنة
+      depositData.isCompleted = false;
+
       saveToCloud();
     }
+
     renderAll();
   } catch (error) {
     console.error("Error loading from cloud:", error);
@@ -121,25 +128,25 @@ function saveDeposit() { saveToCloud(); }
 // RENDER KPI & DASHBOARD
 // ==========================================
 function renderDashboardSummary() {
-  let totalStockCost = 0; 
+  let totalStockCost = 0;
   let totalStockValue = 0;
-  
+
   stocks.forEach(s => {
     if (s.section && !s.section.startsWith("watchlist") && s.quantity && s.quantity > 0) {
-      const q = Number(s.quantity); 
-      const buy = Number(s.buyPrice || 0); 
+      const q = Number(s.quantity);
+      const buy = Number(s.buyPrice || 0);
       const curr = Number(s.currentPrice || 0);
-      totalStockCost += q * buy; 
+      totalStockCost += q * buy;
       totalStockValue += q * curr;
     }
   });
 
   const freeCash = Number(depositData.freeCash || 0);
   const totalDeposited = Number(depositData.totalDeposited || 0);
-  
+
   // إجمالي المحفظة = قيمة الأسهم السوقية الحالية + الكاش الحر
   const totalAssets = totalStockValue + freeCash;
-  
+
   // التعديل الجديد: الربح الكلي يحسب بناءً على الفرق بين إجمالي الأصول وإجمالي ما قمت بإيداعه فعلياً
   const totalProfitLoss = totalAssets - totalDeposited;
   const profitPct = totalDeposited > 0 ? (totalProfitLoss / totalDeposited) * 100 : 0;
@@ -152,17 +159,17 @@ function renderDashboardSummary() {
     pnlEl.className = `profit-pill ${isPos ? "profit-pos" : "profit-neg"}`;
     pnlEl.innerHTML = `<span>${isPos ? "▲ +" : "▼ "}${totalProfitLoss.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</span><span>(${isPos ? "+" : ""}${profitPct.toFixed(2)}%)</span>`;
   }
-  
+
   const depEl = document.getElementById("kpi-total-deposited");
   if (depEl) depEl.innerText = totalDeposited.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  
+
   const cashEl = document.getElementById("kpi-free-cash");
   const cashPctEl = document.getElementById("kpi-cash-pct");
   if (cashEl) cashEl.innerText = freeCash.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (cashPctEl && totalAssets > 0) cashPctEl.innerText = `${((freeCash / totalAssets) * 100).toFixed(1)}% من إجمالي المحفظة`;
-  
- const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
-  
+
+  const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+
   const monthlyEl = document.getElementById("kpi-monthly-deposit");
   const monthNameEl = document.getElementById("kpi-deposit-month-name");
   const statusEl = document.getElementById("kpi-deposit-status");
@@ -171,7 +178,7 @@ function renderDashboardSummary() {
 
   if (monthlyEl) monthlyEl.innerText = Number(depositData.baseAmount || 0).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (monthNameEl) monthNameEl.innerText = `هدف شهر ${monthNames[depositData.lastMonthIndex || 0]}`;
-  
+
   // تحديث حالة السداد
   if (statusEl) {
     if (depositData.isCompleted) {
@@ -187,7 +194,7 @@ function renderDashboardSummary() {
   // التحكم في ظهور التنبيه القوي
   if (alertBox && alertAmount) {
     if (!depositData.isCompleted && depositData.baseAmount > 0) {
-      alertAmount.innerText = Number(depositData.baseAmount).toLocaleString("ar-EG", {minimumFractionDigits: 2});
+      alertAmount.innerText = Number(depositData.baseAmount).toLocaleString("ar-EG", { minimumFractionDigits: 2 });
       alertBox.style.display = "block";
     } else {
       alertBox.style.display = "none";
@@ -198,7 +205,7 @@ function renderDashboardSummary() {
 // ==========================================
 // GLOBAL EDIT FUNCTIONS (Fixes the undefined error)
 // ==========================================
-window.editFreeCash = function() {
+window.editFreeCash = function () {
   openValueEditModal("تعديل السيولة النقدية الحرة", "المبلغ بالجنيه", depositData.freeCash, (val) => {
     depositData.freeCash = val;
     saveToCloud();
@@ -206,7 +213,7 @@ window.editFreeCash = function() {
   });
 };
 
-window.editTotalDeposited = function() {
+window.editTotalDeposited = function () {
   openValueEditModal("تعديل مجموع الإيداعات", "المبلغ بالجنيه", depositData.totalDeposited, (val) => {
     depositData.totalDeposited = val;
     saveToCloud();
@@ -214,11 +221,11 @@ window.editTotalDeposited = function() {
   });
 };
 
-  openValueEditModal("تعديل الإيداع الشهري المستهدف", "المبلغ بالجنيه", depositData.baseAmount, (val) => {
-    depositData.baseAmount = val;
-    saveToCloud();
-    renderAll();
-  });
+openValueEditModal("تعديل الإيداع الشهري المستهدف", "المبلغ بالجنيه", depositData.baseAmount, (val) => {
+  depositData.baseAmount = val;
+  saveToCloud();
+  renderAll();
+});
 // ==========================================
 // REST OF RENDERING & LOGIC
 // ==========================================
@@ -296,7 +303,7 @@ function renderSections() {
     const reqDeposit = Math.round(baseDeposit * (sec.ratio || 0));
     let secValue = 0;
     sectionStocks.forEach(s => { secValue += Number(s.quantity || 0) * Number(s.currentPrice || 0); });
-    
+
     html += `
       <div class="section-block" id="section-${sec.id}">
         <div class="section-head">
@@ -304,7 +311,7 @@ function renderSections() {
             <h3 class="section-title">${sec.title}</h3>
             <span class="ratio-badge">${Math.round(sec.ratio * 100)}% تخصيص</span>
             <span class="deposit-req-badge">مطلوب إيداع: ${reqDeposit.toLocaleString("ar-EG")} ج.م</span>
-            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">| القيمة الحالية: ${secValue.toLocaleString("ar-EG", {minimumFractionDigits:2})} ج.م</span>
+            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">| القيمة الحالية: ${secValue.toLocaleString("ar-EG", { minimumFractionDigits: 2 })} ج.م</span>
           </div>
           <div class="section-head-actions">
             <button class="btn btn-secondary" onclick="openSectionConfigModal('${sec.id}')">⚙️ ضبط الخطة</button>
@@ -339,7 +346,7 @@ function renderWatchlist() {
 function renderStockCard(stock, isWatchlist = false) {
   const q = Number(stock.quantity || 0); const buy = Number(stock.buyPrice || 0); const curr = Number(stock.currentPrice || 0);
   const totalVal = q * curr; const pnl = (curr - buy) * q; const pnlPct = buy > 0 ? ((curr - buy) / buy) * 100 : 0; const isPos = pnl >= 0;
-  
+
   let alertBanner = "";
   const targetKey = `${stock.id}-target-${stock.target1}`;
   const stopLossKey = `${stock.id}-stoploss-${stock.stopLoss}`;
@@ -364,16 +371,16 @@ function renderStockCard(stock, isWatchlist = false) {
             </div>
           </div>
           <div class="stock-price-display">
-            <div class="current-price-val">${curr.toLocaleString("ar-EG", {minimumFractionDigits:2})} <span class="price-currency">ج.م</span></div>
+            <div class="current-price-val">${curr.toLocaleString("ar-EG", { minimumFractionDigits: 2 })} <span class="price-currency">ج.م</span></div>
             ${!isWatchlist ? `<span class="profit-pill ${isPos ? "profit-pos" : "profit-neg"}">${isPos ? "+" : ""}${pnlPct.toFixed(1)}%</span>` : `<span style="font-size:0.68rem; color:var(--accent-amber); font-weight:700;">قيد المراقبة ⭐</span>`}
           </div>
         </div>
         ${!isWatchlist ? `
           <div class="stats-matrix">
             <div class="matrix-item"><span class="matrix-label">الكمية</span><span class="matrix-val">${q.toLocaleString("ar-EG")}</span></div>
-            <div class="matrix-item"><span class="matrix-label">متوسط الشراء</span><span class="matrix-val">${buy.toLocaleString("ar-EG", {minimumFractionDigits:2})} ج.م</span></div>
-            <div class="matrix-item"><span class="matrix-label">إجمالي القيمة</span><span class="matrix-val">${totalVal.toLocaleString("ar-EG", {minimumFractionDigits:2})} ج.م</span></div>
-            <div class="matrix-item"><span class="matrix-label">الربح/الخسارة</span><span class="matrix-val" style="color:${isPos ? "var(--accent-emerald)" : "var(--accent-rose)"}">${isPos ? "+" : ""}${pnl.toLocaleString("ar-EG", {minimumFractionDigits:2})} ج.م</span></div>
+            <div class="matrix-item"><span class="matrix-label">متوسط الشراء</span><span class="matrix-val">${buy.toLocaleString("ar-EG", { minimumFractionDigits: 2 })} ج.م</span></div>
+            <div class="matrix-item"><span class="matrix-label">إجمالي القيمة</span><span class="matrix-val">${totalVal.toLocaleString("ar-EG", { minimumFractionDigits: 2 })} ج.م</span></div>
+            <div class="matrix-item"><span class="matrix-label">الربح/الخسارة</span><span class="matrix-val" style="color:${isPos ? "var(--accent-emerald)" : "var(--accent-rose)"}">${isPos ? "+" : ""}${pnl.toLocaleString("ar-EG", { minimumFractionDigits: 2 })} ج.م</span></div>
           </div>
         ` : `
           <div class="stats-matrix">
@@ -412,7 +419,7 @@ function openAddStockModal(defaultSection = "longTerm") {
   document.getElementById("stock-form-id").value = "";
   document.getElementById("stock-modal-title").innerText = "➕ إضافة أصل / سهم جديد";
   document.getElementById("stock-form-section").value = defaultSection;
-  if(document.getElementById("stock-form-sector")) document.getElementById("stock-form-sector").value = "";
+  if (document.getElementById("stock-form-sector")) document.getElementById("stock-form-sector").value = "";
   document.getElementById("stock-chart-preview").innerHTML = `<span style="font-size:0.75rem; color:var(--text-dim);">لم يتم إرفاق صورة شارت بعد</span>`;
   document.getElementById("stock-form-image-base64").value = "";
   openModal("stock-form-modal");
@@ -423,7 +430,7 @@ function openEditStockModal(stockId) {
   document.getElementById("stock-form-id").value = stock.id;
   document.getElementById("stock-modal-title").innerText = `✏️ تعديل بيانات السهم (${stock.symbol})`;
   document.getElementById("stock-form-section").value = stock.section;
-  if(document.getElementById("stock-form-sector")) document.getElementById("stock-form-sector").value = stock.sector || "";
+  if (document.getElementById("stock-form-sector")) document.getElementById("stock-form-sector").value = stock.sector || "";
   document.getElementById("stock-form-symbol").value = stock.symbol;
   document.getElementById("stock-form-name").value = stock.name;
   document.getElementById("stock-form-quantity").value = stock.quantity || 0;
@@ -490,44 +497,44 @@ function deleteStock(stockId) {
 }
 
 function openStockDetailsById(stockId) {
-  const stock = stocks.find(s => s.id === stockId); 
+  const stock = stocks.find(s => s.id === stockId);
   if (!stock) return;
   activeStockForDetails = stock;
-  
-  const curr = Number(stock.currentPrice || 0); 
-  const buy = Number(stock.buyPrice || 0); 
+
+  const curr = Number(stock.currentPrice || 0);
+  const buy = Number(stock.buyPrice || 0);
   const q = Number(stock.quantity || 0);
-  const totalCost = q * buy; 
-  const totalVal = q * curr; 
-  const pnl = totalVal - totalCost; 
+  const totalCost = q * buy;
+  const totalVal = q * curr;
+  const pnl = totalVal - totalCost;
   const pnlPct = buy > 0 ? ((curr - buy) / buy) * 100 : 0;
-  const isPos = pnl >= 0; 
+  const isPos = pnl >= 0;
   const isWatch = stock.section && stock.section.startsWith("watchlist");
-  const sec = sections.find(s => s.id === stock.section); 
+  const sec = sections.find(s => s.id === stock.section);
   const secName = isWatch ? "قائمة المراقبة ⭐" : (sec ? sec.title : "عام");
-  
+
   let riskRewardText = "غير محدد";
   if (stock.target1 && stock.stopLoss && curr > stock.stopLoss) {
-    const gain = Number(stock.target1) - curr; 
+    const gain = Number(stock.target1) - curr;
     const loss = curr - Number(stock.stopLoss);
-    if (loss > 0) { 
-      const rr = (gain / loss).toFixed(2); 
-      riskRewardText = `1 : ${rr} ${rr >= 2 ? "✅" : "⚠️"}`; 
+    if (loss > 0) {
+      const rr = (gain / loss).toFixed(2);
+      riskRewardText = `1 : ${rr} ${rr >= 2 ? "✅" : "⚠️"}`;
     }
   }
-  
+
   document.getElementById("details-stock-symbol").innerText = stock.symbol;
   document.getElementById("details-stock-name").innerText = stock.name;
   document.getElementById("details-stock-section").innerText = secName;
-  document.getElementById("details-stock-price").innerText = `${curr.toLocaleString("ar-EG", {minimumFractionDigits:2})} ج.م`;
+  document.getElementById("details-stock-price").innerText = `${curr.toLocaleString("ar-EG", { minimumFractionDigits: 2 })} ج.م`;
 
   document.getElementById("details-summary-matrix").innerHTML = `
     <div class="details-stat-card"><span class="details-stat-label">حالة السهم</span><span class="details-stat-val">${isWatch ? "مراقبة" : "مملوك"}</span></div>
     <div class="details-stat-card"><span class="details-stat-label">القطاع</span><span class="details-stat-val">${stock.sector || "غير محدد"}</span></div>
     <div class="details-stat-card"><span class="details-stat-label">الكمية</span><span class="details-stat-val">${isWatch ? "-" : q.toLocaleString("ar-EG")}</span></div>
-    <div class="details-stat-card"><span class="details-stat-label">متوسط الشراء</span><span class="details-stat-val">${isWatch ? "-" : buy.toLocaleString("ar-EG", {minimumFractionDigits:2}) + " ج.م"}</span></div>
-    <div class="details-stat-card"><span class="details-stat-label">إجمالي القيمة</span><span class="details-stat-val">${isWatch ? "-" : totalVal.toLocaleString("ar-EG", {minimumFractionDigits:2}) + " ج.م"}</span></div>
-    <div class="details-stat-card"><span class="details-stat-label">الربح/الخسارة</span><span class="details-stat-val" style="color:${isPos ? "var(--accent-emerald)" : "var(--accent-rose)"}">${isWatch ? "-" : (isPos ? "+" : "") + pnl.toLocaleString("ar-EG", {minimumFractionDigits:2}) + " ج.م"}</span></div>
+    <div class="details-stat-card"><span class="details-stat-label">متوسط الشراء</span><span class="details-stat-val">${isWatch ? "-" : buy.toLocaleString("ar-EG", { minimumFractionDigits: 2 }) + " ج.م"}</span></div>
+    <div class="details-stat-card"><span class="details-stat-label">إجمالي القيمة</span><span class="details-stat-val">${isWatch ? "-" : totalVal.toLocaleString("ar-EG", { minimumFractionDigits: 2 }) + " ج.م"}</span></div>
+    <div class="details-stat-card"><span class="details-stat-label">الربح/الخسارة</span><span class="details-stat-val" style="color:${isPos ? "var(--accent-emerald)" : "var(--accent-rose)"}">${isWatch ? "-" : (isPos ? "+" : "") + pnl.toLocaleString("ar-EG", { minimumFractionDigits: 2 }) + " ج.م"}</span></div>
     <div class="details-stat-card"><span class="details-stat-label">القيمة العادلة</span><span class="details-stat-val">${stock.fairValue ? stock.fairValue + " ج.م" : "غير مدخلة"}</span></div>
   `;
 
@@ -555,14 +562,14 @@ function openStockDetailsById(stockId) {
     notesBox.style.display = "none";
   }
 
-  document.getElementById("details-edit-btn").onclick = () => { 
-    closeModal("stock-details-modal"); 
-    openEditStockModal(stock.id); 
+  document.getElementById("details-edit-btn").onclick = () => {
+    closeModal("stock-details-modal");
+    openEditStockModal(stock.id);
   };
-  document.getElementById("details-delete-btn").onclick = () => { 
-    deleteStock(stock.id); 
+  document.getElementById("details-delete-btn").onclick = () => {
+    deleteStock(stock.id);
   };
-  
+
   openModal("stock-details-modal");
 }
 
@@ -607,7 +614,7 @@ function renderSearchResults(query) {
   let html = "";
   filtered.forEach(stock => {
     const sec = sections.find(s => s.id === stock.section); const secName = stock.section && stock.section.startsWith("watchlist") ? "قائمة المراقبة ⭐" : (sec ? sec.title : "عام");
-    html += `<div class="search-item" onclick="closeModal('search-modal'); openStockDetailsById('${stock.id}')"><div style="display:flex; align-items:center; gap:0.6rem;"><span class="stock-symbol-tag">${stock.symbol}</span><div><div style="font-weight:700; font-size:0.85rem; color:#ffffff;">${stock.name}</div><div style="font-size:0.7rem; color:var(--accent-amber);">${secName}</div></div></div><div style="text-align:left;"><span style="font-weight:700; font-size:0.85rem; color:#ffffff;">${Number(stock.currentPrice).toLocaleString("ar-EG", {minimumFractionDigits:2})} ج.م</span></div></div>`;
+    html += `<div class="search-item" onclick="closeModal('search-modal'); openStockDetailsById('${stock.id}')"><div style="display:flex; align-items:center; gap:0.6rem;"><span class="stock-symbol-tag">${stock.symbol}</span><div><div style="font-weight:700; font-size:0.85rem; color:#ffffff;">${stock.name}</div><div style="font-size:0.7rem; color:var(--accent-amber);">${secName}</div></div></div><div style="text-align:left;"><span style="font-weight:700; font-size:0.85rem; color:#ffffff;">${Number(stock.currentPrice).toLocaleString("ar-EG", { minimumFractionDigits: 2 })} ج.م</span></div></div>`;
   });
   container.innerHTML = html;
 }
@@ -633,13 +640,13 @@ window.dismissAlert = dismissAlert;
 window.closeModal = closeModal;
 
 // دوال الإيداع التراكمي (مربوطة بالـ window لكي يراها HTML)
-window.markDepositCompleted = function() {
+window.markDepositCompleted = function () {
   depositData.isCompleted = true;
   saveToCloud();
   renderAll();
 };
 
-window.openDepositSettingsModal = function() {
+window.openDepositSettingsModal = function () {
   document.getElementById("dep-month-input").value = depositData.lastMonthIndex || 0;
   document.getElementById("dep-amount-input").value = depositData.baseAmount || 0;
   document.getElementById("dep-growth-input").value = depositData.growthRate !== undefined ? depositData.growthRate : 20;
@@ -647,16 +654,16 @@ window.openDepositSettingsModal = function() {
 };
 // في حال نسينا ربط الدالة الخاصة بحفظ نموذج الإيداع
 const depForm = document.getElementById("deposit-settings-form");
-if(depForm) {
+if (depForm) {
   depForm.addEventListener("submit", (e) => {
     e.preventDefault();
     depositData.lastMonthIndex = parseInt(document.getElementById("dep-month-input").value);
     depositData.baseAmount = parseFloat(document.getElementById("dep-amount-input").value) || 0;
     depositData.growthRate = parseFloat(document.getElementById("dep-growth-input").value) || 0;
-    
+
     // إعادة تفعيل التنبيه عند تعديل الخطة
-    depositData.isCompleted = false; 
-    
+    depositData.isCompleted = false;
+
     saveToCloud();
     renderAll();
     closeModal("deposit-settings-modal");
@@ -665,52 +672,125 @@ if(depForm) {
 // ==========================================
 // INITIALIZATION & LISTENERS
 // ==========================================
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
+
+  const auth = getAuth();
+  const db = getFirestore();
+
+  // مراقبة حالة المستخدم
   onAuthStateChanged(auth, async (user) => {
+    const pendingScreen = document.getElementById("pendingApprovalScreen");
+    const mainApp = document.getElementById("mainApp"); // أو العنصر الحاوي للوحة التحكم
+
     if (user) {
-      currentUser = user;
-      document.getElementById('login-overlay').style.display = 'none';
-      
+      // --- حالة: المستخدم مسجل الدخول ---
+
       // التعديل الجديد: تحديث عنوان المحفظة باسم المستخدم
       const userName = user.displayName || "مستخدم جديد";
       const headerTitle = document.getElementById('main-app-title');
-      if(headerTitle) headerTitle.innerText = `لوحة تحكم المحفظة الاستثمارية (الخاصة بـ ${userName})`;
+      if (headerTitle) headerTitle.innerText = `لوحة تحكم المحفظة الاستثمارية (الخاصة بـ ${userName})`;
+      
+      // تحميل بيانات الحالة من التخزين السحابي
       await loadStateFromCloud(user.uid);
+
+      // التحقق من حالة المستخدم في قاعدة البيانات (Firestore)
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+
+      let userData;
+
+      if (!userSnap.exists()) {
+        // إذا كان مستخدم جديد لأول مرة: يتم حفظه بحالة pending
+        userData = {
+          email: user.email,
+          displayName: user.displayName || "",
+          status: "pending",
+          role: "user",
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(userRef, userData);
+      } else {
+        userData = userSnap.data();
+      }
+
+      // التحقق من الموافقة
+      if (userData.status === "approved" || userData.role === "admin") {
+        if (pendingScreen) pendingScreen.style.display = "none";
+        if (mainApp) mainApp.style.display = "block";
+        loadPortfolioData(); // دالة تحميل بيانات الأسهم والمحفظة
+      } else {
+        // المستخدم ما زال قيد الانتظار
+        if (pendingScreen) pendingScreen.style.display = "flex";
+        if (mainApp) mainApp.style.display = "none";
+      }
+
     } else {
+      // --- حالة: لم يسجل الدخول ---
+      if (pendingScreen) pendingScreen.style.display = "none";
+      showLoginScreen(); // دالة عرض واجهة تسجيل الدخول
+
       currentUser = null;
       document.getElementById('login-overlay').style.display = 'flex';
-      sections = []; stocks = []; depositData = {};
+      
+      // تفريغ البيانات المحلية
+      sections = [];
+      stocks = [];
+      depositData = {};
     }
-  });
+  }); 
 
-// دوال إعدادات الحساب
-window.openAccountSettingsModal = function() {
-  if(currentUser) {
-    document.getElementById("acc-name-input").value = currentUser.displayName || "";
-    openModal("account-settings-modal");
-  }
-};
+}); 
 
-const accForm = document.getElementById("account-settings-form");
-if (accForm) {
-  accForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const newName = document.getElementById("acc-name-input").value.trim();
-    if (currentUser && newName) {
-      try {
-        await updateProfile(currentUser, { displayName: newName });
-        // تحديث العنوان فوراً بعد التعديل
-        const headerTitle = document.getElementById('main-app-title');
-        if (headerTitle) headerTitle.innerText = `لوحة تحكم المحفظة الاستثمارية (${newName})`;
-        closeModal("account-settings-modal");
-        alert("تم تحديث اسم حسابك بنجاح!");
-      } catch (err) {
-        console.error(err);
-        alert("حدث خطأ أثناء تحديث الاسم.");
+  // دوال إعدادات الحساب
+  window.openAccountSettingsModal = function () {
+    if (currentUser) {
+      // تعبئة البيانات الحالية
+      document.getElementById("acc-name-input").value = currentUser.displayName || "";
+      document.getElementById("acc-email-input").value = currentUser.email || "";
+      document.getElementById("acc-photo-input").value = currentUser.photoURL || "";
+
+      // تحديث صورة العرض
+      const preview = document.getElementById("acc-profile-pic-preview");
+      if (preview) {
+        preview.src = currentUser.photoURL || "https://via.placeholder.com/80";
       }
+
+      openModal("account-settings-modal");
     }
-  });
-}
+  };
+
+  const accForm = document.getElementById("account-settings-form");
+  if (accForm) {
+    accForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const newName = document.getElementById("acc-name-input").value.trim();
+      const newPhoto = document.getElementById("acc-photo-input").value.trim();
+
+      if (currentUser && newName) {
+        try {
+          // تحديث الاسم والصورة في قاعدة بيانات Firebase Auth
+          await updateProfile(currentUser, {
+            displayName: newName,
+            photoURL: newPhoto
+          });
+
+          // تحديث العنوان الفوري
+          const headerTitle = document.getElementById('main-app-title');
+          if (headerTitle) headerTitle.innerText = `لوحة تحكم المحفظة الاستثمارية (الخاصة بـ ${newName})`;
+
+          // تحديث صورة العرض المصغرة
+          const preview = document.getElementById("acc-profile-pic-preview");
+          if (preview) preview.src = newPhoto || "https://via.placeholder.com/80";
+
+          closeModal("account-settings-modal");
+          alert("تم تحديث بيانات حسابك الشاملة بنجاح! 🌟");
+        } catch (err) {
+          console.error(err);
+          alert("حدث خطأ أثناء تحديث البيانات.");
+        }
+      }
+    });
+  }
 
   const googleLoginBtn = document.getElementById('google-login-btn');
   if (googleLoginBtn) {
@@ -720,7 +800,7 @@ if (accForm) {
   }
 
   const logoutBtn = document.getElementById('logout-btn');
-  if(logoutBtn) {
+  if (logoutBtn) {
     logoutBtn.addEventListener('click', () => signOut(auth).then(() => alert("تم تسجيل الخروج.")));
   }
 
@@ -730,12 +810,14 @@ if (accForm) {
   const valEditForm = document.getElementById("value-edit-form"); if (valEditForm) valEditForm.addEventListener("submit", handleValueEditSubmit);
   const searchInput = document.getElementById("search-input"); if (searchInput) searchInput.addEventListener("input", handleSearchInput);
 
-  window.addEventListener("keydown", function(e) {
+  window.addEventListener("keydown", function (e) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearchModal(); }
     if (e.key === "Escape") document.querySelectorAll(".modal-overlay.active").forEach(m => m.classList.remove("active"));
   });
 
   document.querySelectorAll(".modal-overlay").forEach(overlay => {
-    overlay.addEventListener("click", function(e) { if (e.target === overlay) overlay.classList.remove("active"); });
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.classList.remove("active"); });
   });
+
+  renderAll();
 });

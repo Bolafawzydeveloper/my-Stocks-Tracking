@@ -21,7 +21,7 @@
   --accent-rose-bg: rgba(244, 63, 94, 0.12);
   --accent-amber: #f59e0b;
   --accent-amber-bg: rgba(245, 158, 11, 0.12);
-  --accent-purple: #8b5cf6;
+  --accent-purple: #331258;
   --accent-purple-bg: rgba(139, 92, 246, 0.12);
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -907,15 +907,15 @@ body {
 .watchlist-wrapper {
   margin-top: 3.5rem; 
   padding: 1.5rem;
-  background-color: #2e1065; /* خلفية بنفسجي غامق ومميز */
-  border: 2px solid #c084fc; /* إطار متصل بدلاً من المتقطع ليناسب الـ 3D */
+  background-color: #380202; 
+  border: 2px solid #680808; /* إطار متصل بدلاً من المتقطع ليناسب الـ 3D */
   border-radius: var(--radius-xl);
-  box-shadow: 0 8px 0 #7e22ce, 0 15px 25px rgba(168, 85, 247, 0.25); /* تأثير 3D وظل مطابق لباقي الأقسام */
+  box-shadow: 0 8px 0 #8f1212, 0 15px 25px rgba(106, 13, 26, 0.943); /* تأثير 3D وظل مطابق لباقي الأقسام */
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .watchlist-wrapper:active {
   transform: translateY(4px);
-  box-shadow: 0 4px 0 #7e22ce, 0 5px 10px rgba(168, 85, 247, 0.15);
+  box-shadow: 0 4px 0 #4f0d0d, 0 5px 10px rgba(168, 85, 247, 0.15);
 }
 .watchlist-sub-title {
   font-size: 1.1rem;
@@ -944,7 +944,7 @@ body {
 /* تأثير عند تمرير الماوس على كارت المراقبة */
 .watchlist-wrapper .stock-card:hover {
   background-color: rgba(168, 85, 247, 0.25);
-  border-color: #c084fc;
+  border-color: #8642c9;
 }
 
 /* التأكد من أن أسماء الأسهم والنصوص الأساسية داخل المراقبة بيضاء */

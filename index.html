@@ -54,7 +54,7 @@
 
       <!-- المنتصف: العنوان والتاريخ -->
       <div class="logo-section" style="flex: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-        <h1 style="font-size: 1.05rem; font-weight: 700; margin: 0; color: #ffffff;">لوحة تحكم المحفظة الاستثمارية</h1>
+        <h1 id="main-app-title" style="font-size: 1.05rem; font-weight: 700; margin: 0; color: #ffffff;">لوحة تحكم المحفظة الاستثمارية</h1>
         <p id="current-date-text" style="font-size: 0.725rem; color: var(--text-muted); margin: 0;">جاري تحميل التاريخ...</p>
       </div>
 
@@ -172,16 +172,13 @@
       <div class="section-head watchlist-head" style="background: transparent; border-bottom: none; padding-bottom: 0;">
         <div class="section-title-wrap">
           <h3 class="section-title" style="color: #c084fc; font-size: 1.3rem;">⭐ قائمة الأسهم قيد المراقبة والدراسة</h3>
-          <span class="ratio-badge" style="background: rgba(168,85,247,0.15); color: #d8b4fe; border-color: rgba(168,85,247,0.3);">
-            مفصولة ومميزة
-          </span>
         </div>
         <div class="section-head-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <button class="btn btn-primary" onclick="openAddStockModal('watchlistLong')" style="background-color: #9333ea; border: none; box-shadow: none;">
-            ➕ إضافة مراقبة (استثمار)
+          <button class="btn btn-primary" onclick="openAddStockModal('watchlistLong')" style="background-color: #821212; border: none; box-shadow: none;">
+            ➕ إضافة اسهم (استثمار طويل المدى)
           </button>
-          <button class="btn btn-primary" onclick="openAddStockModal('watchlistShort')" style="background-color: #a855f7; border: none; box-shadow: none;">
-            ➕ إضافة مراقبة (مضاربة)
+          <button class="btn btn-primary" onclick="openAddStockModal('watchlistShort')" style="background-color: #821212; border: none; box-shadow: none;">
+            ➕ إضافة اسهم (مضاربة)
           </button>
         </div>
         <div class="section-rule" style="color: #a855f7;">
@@ -486,24 +483,41 @@
       </div>
     </div>
   </div>
-  <!-- Modal 6: Account Settings Modal -->
+  <!-- Modal 6: Account Settings Modal  -->
   <div class="modal-overlay" id="account-settings-modal">
-    <div class="modal-box" style="max-width:380px;">
+    <div class="modal-box" style="max-width:450px;">
       <div class="modal-header">
         <h3 class="modal-title">⚙️ تفاصيل وإعدادات الحساب</h3>
         <button class="modal-close-btn" onclick="closeModal('account-settings-modal')">&times;</button>
       </div>
       <form id="account-settings-form">
         <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">اسم المستخدم</label>
-            <input type="text" id="acc-name-input" class="form-input" required />
-            <span style="font-size:0.7rem; color:var(--text-dim); margin-top:4px; display:block;">هذا الاسم سيظهر في عنوان المحفظة الخاص بك.</span>
+          
+          <!-- عرض الصورة الشخصية -->
+          <div style="text-align: center; margin-bottom: 1.5rem;">
+            <img id="acc-profile-pic-preview" src="https://via.placeholder.com/80" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent-emerald); padding: 2px;" alt="الصورة الشخصية">
           </div>
+
+          <div class="form-group">
+            <label class="form-label">البريد الإلكتروني (حساب Google)</label>
+            <input type="email" id="acc-email-input" class="form-input" disabled style="opacity: 0.6; cursor: not-allowed; background-color: rgba(0,0,0,0.2);" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">اسم المستخدم (يظهر في عنوان المحفظة) *</label>
+            <input type="text" id="acc-name-input" class="form-input" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">رابط الصورة الشخصية (اختياري)</label>
+            <input type="url" id="acc-photo-input" class="form-input" placeholder="https://..." />
+            <span style="font-size:0.7rem; color:var(--text-dim); margin-top:4px; display:block;">يمكنك وضع رابط صورة جديدة، أو تركها فارغة لاستخدام صورتك الحالية.</span>
+          </div>
+
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeModal('account-settings-modal')">إلغاء</button>
-          <button type="submit" class="btn btn-primary">💾 حفظ التغييرات</button>
+          <button type="submit" class="btn btn-primary">💾 حفظ التحديثات</button>
         </div>
       </form>
     </div>
@@ -545,7 +559,19 @@
       </form>
     </div>
   </div>
-
+  <!-- شاشة الانتظار للمستخدمين الجدد -->
+<div id="pendingApprovalScreen" style="display: none; position: fixed; inset: 0; background: #0f172a; z-index: 9999; justify-content: center; align-items: center; text-align: center; color: white; padding: 20px;">
+  <div style="background: #1e293b; padding: 30px; border-radius: 16px; max-width: 450px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+    <div style="font-size: 48px; margin-bottom: 15px;">⏳</div>
+    <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">الحساب بانتظار تفعيل الإدارة</h2>
+    <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 25px;">
+      تم استلام طلبك بنجاح. لا يمكنك استخدام لوحة تحكم المحفظة إلا بعد مراجعة الحساب والموافقة عليه من المشرف.
+    </p>
+    <button onclick="auth.signOut().then(() => location.reload())" style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+      تسجيل الخروج
+    </button>
+  </div>
+</div>
   <!-- Standalone Script -->
   <script type="module" src="./script.js"></script>
 </body>
