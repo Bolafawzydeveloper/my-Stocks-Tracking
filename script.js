@@ -680,17 +680,24 @@ document.addEventListener("DOMContentLoaded", function () {
   // مراقبة حالة المستخدم
   onAuthStateChanged(auth, async (user) => {
     const pendingScreen = document.getElementById("pendingApprovalScreen");
-    const mainApp = document.getElementById("mainApp"); // أو العنصر الحاوي للوحة التحكم
+    const mainApp = document.getElementById("mainApp"); // العنصر الحاوي للوحة التحكم
+    const loginOverlay = document.getElementById("login-overlay"); // شاشة تسجيل الدخول
 
     if (user) {
       // --- حالة: المستخدم مسجل الدخول ---
+      
+      // [إصلاح هام]: تعيين المستخدم الحالي لكي تعمل دالة الحفظ saveToCloud
+      currentUser = user; 
+
+      // إخفاء شاشة تسجيل الدخول
+      if (loginOverlay) loginOverlay.style.display = 'none';
 
       // التعديل الجديد: تحديث عنوان المحفظة باسم المستخدم
       const userName = user.displayName || "مستخدم جديد";
       const headerTitle = document.getElementById('main-app-title');
       if (headerTitle) headerTitle.innerText = `لوحة تحكم المحفظة الاستثمارية (الخاصة بـ ${userName})`;
       
-      // تحميل بيانات الحالة من التخزين السحابي
+      // تحميل بيانات الحالة من التخزين السحابي (هذه الدالة تقوم بجلب البيانات وتشغيل renderAll تلقائياً)
       await loadStateFromCloud(user.uid);
 
       // التحقق من حالة المستخدم في قاعدة البيانات (Firestore)
@@ -717,7 +724,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (userData.status === "approved" || userData.role === "admin") {
         if (pendingScreen) pendingScreen.style.display = "none";
         if (mainApp) mainApp.style.display = "block";
-        loadPortfolioData(); // دالة تحميل بيانات الأسهم والمحفظة
+        // تم حذف loadPortfolioData() لأن الكود السحابي قام بالمطلوب
       } else {
         // المستخدم ما زال قيد الانتظار
         if (pendingScreen) pendingScreen.style.display = "flex";
@@ -726,12 +733,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     } else {
       // --- حالة: لم يسجل الدخول ---
-      if (pendingScreen) pendingScreen.style.display = "none";
-      showLoginScreen(); // دالة عرض واجهة تسجيل الدخول
-
       currentUser = null;
-      document.getElementById('login-overlay').style.display = 'flex';
+
+      if (pendingScreen) pendingScreen.style.display = "none";
+      if (mainApp) mainApp.style.display = "none";
+      if (loginOverlay) loginOverlay.style.display = 'flex'; // إظهار شاشة الدخول
       
+      // تم حذف showLoginScreen() غير المعرفة
+
       // تفريغ البيانات المحلية
       sections = [];
       stocks = [];
@@ -739,7 +748,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }); 
 
-}); 
+});
 
   // دوال إعدادات الحساب
   window.openAccountSettingsModal = function () {
@@ -818,4 +827,3 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".modal-overlay").forEach(overlay => {
     overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.classList.remove("active"); });
   });
-  
