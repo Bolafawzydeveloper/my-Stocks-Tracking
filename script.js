@@ -53,6 +53,7 @@ let stocks = [];
 let depositData = {};
 let activeStockForDetails = null;
 let dismissedAlerts = [];
+const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
 // ==========================================
 // CLOUD STORAGE & SYNC
@@ -114,7 +115,7 @@ async function saveToCloud() {
       depositData,
       dismissedAlerts,
       lastUpdated: new Date().toISOString()
-    }, { merge: true }); // <-- التعديل السحري هنا يمنع مسح باقي البيانات
+    }, { merge: true }); // <--  هنا يمنع مسح باقي البيانات
   } catch (error) {
     console.error("Error saving to cloud:", error);
   }
@@ -167,8 +168,6 @@ function renderDashboardSummary() {
   const cashPctEl = document.getElementById("kpi-cash-pct");
   if (cashEl) cashEl.innerText = freeCash.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (cashPctEl && totalAssets > 0) cashPctEl.innerText = `${((freeCash / totalAssets) * 100).toFixed(1)}% من إجمالي المحفظة`;
-
-  const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 
   const monthlyEl = document.getElementById("kpi-monthly-deposit");
   const monthNameEl = document.getElementById("kpi-deposit-month-name");
