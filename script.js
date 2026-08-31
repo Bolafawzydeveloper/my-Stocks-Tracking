@@ -114,7 +114,7 @@ async function saveToCloud() {
       depositData,
       dismissedAlerts,
       lastUpdated: new Date().toISOString()
-    });
+    }, { merge: true }); // <-- التعديل السحري هنا يمنع مسح باقي البيانات
   } catch (error) {
     console.error("Error saving to cloud:", error);
   }
