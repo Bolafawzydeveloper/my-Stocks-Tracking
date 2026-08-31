@@ -827,3 +827,12 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".modal-overlay").forEach(overlay => {
     overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.classList.remove("active"); });
   });
+  window.forceLogout = function() {
+  const currentAuth = getAuth();
+  signOut(currentAuth).then(() => {
+    console.log("تم تسجيل الخروج بنجاح");
+    window.location.reload(); // تحديث الصفحة لإجبار النظام على مسح الشاشة
+  }).catch((error) => {
+    alert("حدث خطأ أثناء تسجيل الخروج: " + error.message);
+  });
+};
